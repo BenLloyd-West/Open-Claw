@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Charlie · Task Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 1.2rem; color: #f0f6fc; }
+    header span { font-size: 0.85rem; color: #8b949e; }
+
+    .filters {
+      padding: 16px 24px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #21262d;
+      background: #161b22;
+    }
+
+    .filters select, .filters input {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .column {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .column-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .count {
+      background: #21262d;
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+    }
+
+    .card {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .card:hover { border-color: #388bfd; }
+
+    .card-title {
+      font-size: 0.85rem;
+      color: #f0f6fc;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .card-meta {
+      font-size: 0.75rem;
+      color: #8b949e;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .p0 { background: #3d1515; color: #f85149; }
+    .p1 { background: #3d2b00; color: #e3b341; }
+    .p2 { background: #1c3a1c; color: #3fb950; }
+    .p3 { background: #1c2a3a; color: #58a6ff; }
+
+    .model-tag {
+      background: #21262d;
+      color: #8b949e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+    }
+
+    .model-escalated { color: #d2a8ff; }
+
+    /* Completed table */
+    .completed-section { padding: 0 24px 24px; }
+    .completed-section h2 {
+      font-size: 0.9rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      color: #8b949e;
+      border-bottom: 1px solid #21262d;
+      font-weight: 500;
+    }
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #161b22;
+    }
+
+    tr:hover td { background: #161b22; }
+
+    a { color: #58a6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .empty { color: #8b949e; font-size: 0.82rem; padding: 12px 0; }
+
+    .status-backlog    { color: #8b949e; }
+    .status-in-progress { color: #e3b341; }
+    .status-blocked    { color: #f85149; }
+    .status-review     { color: #d2a8ff; }
+    .status-done       { color: #3fb950; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🦅 Charlie · Task Dashboard</h1>
+  <span id="last-updated"></span>
+</header>
+
+<div class="filters">
+  <select id="filter-status">
+    <option value="">All Statuses</option>
+    <option value="backlog">Backlog</option>
+    <option value="in-progress">In Progress</option>
+    <option value="blocked">Blocked</option>
+    <option value="review">Review</option>
+    <option value="done">Done</option>
+  </select>
+  <select id="filter-priority">
+    <option value="">All Priorities</option>
+    <option value="p0">p0 - Critical</option>
+    <option value="p1">p1 - High</option>
+    <option value="p2">p2 - Medium</option>
+    <option value="p3">p3 - Low</option>
+  </select>
+  <select id="filter-model">
+    <option value="">All Models</option>
+    <option value="local">Local</option>
+    <option value="codex">CodeX</option>
+  </select>
+  <input type="text" id="filter-search" placeholder="Search tasks..." />
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="completed-section">
+  <h2>✅ Completed Tasks</h2>
+  <table id="completed-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Task</th>
+        <th>Priority</th>
+        <th>Started</th>
+        <th>Finished</th>
+        <th>Duration</th>
+        <th>Models</th>
+      </tr>
+    </thead>
+    <tbody id="completed-body"></tbody>
+  </table>
+</div>
+
+<script>
+  const COLUMNS = ['backlog', 'in-progress', 'blocked', 'review', 'done'];
+  const LABELS = { backlog: 'Backlog', 'in-progress': 'In Progress', blocked: 'Blocked', review: 'Review', done: 'Done' };
+  let allTasks = [];
+
+  async function loadTasks() {
+    try {
+      const res = await fetch('../data/tasks.json?_=' + Date.now());
+      allTasks = await res.json();
+      document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+      render();
+    } catch (e) {
+      document.getElementById('board').innerHTML = '<p class="empty" style="padding:24px">Could not load tasks.json</p>';
+    }
+  }
+
+  function getFilters() {
+    return {
+      status: document.getElementById('filter-status').value,
+      priority: document.getElementById('filter-priority').value,
+      model: document.getElementById('filter-model').value.toLowerCase(),
+      search: document.getElementById('filter-search').value.toLowerCase()
+    };
+  }
+
+  function filterTasks(tasks) {
+    const f = getFilters();
+    return tasks.filter(t => {
+      if (f.status && t.status !== f.status) return false;
+      if (f.priority && !t.priority?.startsWith(f.priority)) return false;
+      if (f.model && !t.models_used?.toLowerCase().includes(f.model)) return false;
+      if (f.search && !t.title?.toLowerCase().includes(f.search)) return false;
+      return true;
+    });
+  }
+
+  function priorityClass(p) {
+    if (!p) return '';
+    if (p.startsWith('p0')) return 'p0';
+    if (p.startsWith('p1')) return 'p1';
+    if (p.startsWith('p2')) return 'p2';
+    return 'p3';
+  }
+
+  function render() {
+    const filtered = filterTasks(allTasks);
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+
+    COLUMNS.forEach(col => {
+      const tasks = filtered.filter(t => t.status === col);
+      const div = document.createElement('div');
+      div.className = 'column';
+      div.innerHTML = `
+        <div class="column-header">
+          <span class="status-${col}">${LABELS[col]}</span>
+          <span class="count">${tasks.length}</span>
+        </div>
+        ${tasks.length === 0 ? '<p class="empty">No tasks</p>' : ''}
+        ${tasks.map(t => `
+          <a href="${t.url}" target="_blank" style="text-decoration:none">
+            <div class="card">
+              <div class="card-title">${t.title.replace('[Task] ', '')}</div>
+              <div class="card-meta">
+                <span class="badge ${priorityClass(t.priority)}">${t.priority || '?'}</span>
+                ${t.models_used ? `<span class="model-tag ${t.models_used.includes('CodeX') ? 'model-escalated' : ''}">${t.models_used}</span>` : ''}
+                ${t.duration_minutes && t.duration_minutes !== '?' ? `<span>⏱ ${t.duration_minutes}m</span>` : ''}
+              </div>
+            </div>
+          </a>
+        `).join('')}
+      `;
+      board.appendChild(div);
+    });
+
+    // Completed table
+    const done = filtered.filter(t => t.status === 'done');
+    const tbody = document.getElementById('completed-body');
+    tbody.innerHTML = done.length === 0
+      ? '<tr><td colspan="7" class="empty">No completed tasks yet</td></tr>'
+      : done.map(t => `
+        <tr>
+          <td><a href="${t.url}" target="_blank">#${t.id}</a></td>
+          <td>${t.title.replace('[Task] ', '')}</td>
+          <td><span class="badge ${priorityClass(t.priority)}">${t.priority || '?'}</span></td>
+          <td>${t.started_at || '—'}</td>
+          <td>${t.finished_at || '—'}</td>
+          <td>${t.duration_minutes ? t.duration_minutes + 'm' : '—'}</td>
+          <td>${t.models_used ? `<span class="model-tag ${t.models_used.includes('CodeX') ? 'model-escalated' : ''}">${t.models_used}</span>` : '—'}</td>
+        </tr>
+      `).join('');
+  }
+
+  ['filter-status', 'filter-priority', 'filter-model', 'filter-search'].forEach(id => {
+    document.getElementById(id).addEventListener('input', render);
+  });
+
+  loadTasks();
+  setInterval(loadTasks, 60000); // auto-refresh every 60s
+</script>
+</body>
+</html>
