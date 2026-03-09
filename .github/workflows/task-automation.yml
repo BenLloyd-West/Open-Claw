@@ -1,0 +1,124 @@
+name: Task Automation
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  stamp-timestamps:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stamp started_at when in-progress
+        if: github.event.label.name == 'status: in-progress'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            if (body.includes('Started At') && !body.match(/Started At\s*\n[^\n]+\S/)) {
+              const updated = body.replace(
+                /### Started At\s*\n[^\n]*/,
+                `### Started At\n${now}`
+              );
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: updated
+              });
+            }
+
+      - name: Stamp finished_at and calculate duration when done
+        if: github.event.label.name == 'status: done'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const now = new Date();
+            const nowStr = now.toISOString().slice(0, 16).replace('T', ' ');
+
+            // Extract started_at
+            const startMatch = body.match(/### Started At\s*\n([^\n]+)/);
+            let duration = '?';
+            if (startMatch && startMatch[1].trim() !== '_No response_') {
+              const start = new Date(startMatch[1].trim());
+              const diff = Math.round((now - start) / 60000);
+              duration = diff > 0 ? String(diff) : '?';
+            }
+
+            let updated = body.replace(
+              /### Finished At\s*\n[^\n]*/,
+              `### Finished At\n${nowStr}`
+            );
+            updated = updated.replace(
+              /### Duration \(minutes\)\s*\n[^\n]*/,
+              `### Duration (minutes)\n${duration}`
+            );
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: updated
+            });
+
+      - name: Sync tasks to data/tasks.json
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+
+            const tasks = issues
+              .filter(i => !i.pull_request)
+              .map(i => {
+                const labels = i.labels.map(l => l.name);
+                const status = labels.find(l => l.startsWith('status:'))?.replace('status: ', '') || 'backlog';
+                const priority = labels.find(l => l.startsWith('priority:'))?.replace('priority: ', '') || '?';
+
+                const extract = (field, body) => {
+                  const match = body?.match(new RegExp(`### ${field}\\s*\\n([^\\n]+)`));
+                  return match ? match[1].trim() : null;
+                };
+
+                return {
+                  id: i.number,
+                  title: i.title,
+                  status,
+                  priority,
+                  started_at: extract('Started At', i.body),
+                  finished_at: extract('Finished At', i.body),
+                  models_used: extract('Models Used', i.body),
+                  duration_minutes: extract('Duration \\(minutes\\)', i.body),
+                  escalation_reason: extract('Reason for Escalation', i.body),
+                  url: i.html_url,
+                  created_at: i.created_at,
+                  updated_at: i.updated_at
+                };
+              });
+
+            const fs = require('fs');
+            fs.mkdirSync('data', { recursive: true });
+            fs.writeFileSync('data/tasks.json', JSON.stringify(tasks, null, 2));
+
+      - name: Commit tasks.json
+        run: |
+          git config user.name "charlie-agent"
+          git config user.email "charlie@openclaw.ai"
+          git add data/tasks.json
+          git diff --staged --quiet || git commit -m "chore: sync tasks.json [skip ci]"
+          git push
