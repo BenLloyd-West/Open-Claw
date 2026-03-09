@@ -1,0 +1,55 @@
+name: Task
+description: Create a new task
+title: "[Task] "
+labels: ["status: backlog"]
+assignees: []
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      placeholder: What needs to be done?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - p0 - Critical
+        - p1 - High
+        - p2 - Medium
+        - p3 - Low
+    validations:
+      required: true
+
+  - type: input
+    id: started_at
+    attributes:
+      label: Started At
+      placeholder: "YYYY-MM-DD HH:MM (auto-stamped by automation)"
+
+  - type: input
+    id: finished_at
+    attributes:
+      label: Finished At
+      placeholder: "YYYY-MM-DD HH:MM (auto-stamped by automation)"
+
+  - type: input
+    id: models_used
+    attributes:
+      label: Models Used
+      placeholder: "e.g. local, local→CodeX"
+
+  - type: input
+    id: duration_minutes
+    attributes:
+      label: Duration (minutes)
+      placeholder: "Auto-calculated on completion"
+
+  - type: textarea
+    id: escalation_reason
+    attributes:
+      label: Reason for Escalation
+      placeholder: Why was CodeX used instead of local model?
